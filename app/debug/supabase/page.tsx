@@ -9,15 +9,15 @@ import AppLayout from '@/components/layouts/AppLayout';
 import { Badge } from '@/components/ui/badge';
 
 export default function SupabaseDebugPage() {
-  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('loading');
   const [error, setError] = useState<string | null>(null);
   const [config, setConfig] = useState({
     url: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
     key: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   });
 
-  const testConnection = async () => {
-    setStatus('loading');
+  const testConnection = async (isInitial = false) => {
+    if (!isInitial) setStatus('loading');
     setError(null);
 
     try {
@@ -49,7 +49,12 @@ export default function SupabaseDebugPage() {
   };
 
   useEffect(() => {
-    testConnection();
+    const runInitialTest = async () => {
+      // Delay slightly to avoid synchronous state update warning in development
+      await new Promise(resolve => setTimeout(resolve, 0));
+      await testConnection(true);
+    };
+    runInitialTest();
   }, []);
 
   return (
@@ -119,7 +124,7 @@ export default function SupabaseDebugPage() {
                     Lumina is successfully communicating with the Supabase backend.
                   </p>
                 </div>
-                <Button onClick={testConnection} variant="outline">Re-test Connection</Button>
+                <Button onClick={() => testConnection()} variant="outline">Re-test Connection</Button>
               </div>
             )}
 
@@ -135,7 +140,7 @@ export default function SupabaseDebugPage() {
                   </div>
                 </div>
                 <div className="flex flex-col space-y-2 max-w-xs mx-auto">
-                  <Button onClick={testConnection}>Retry</Button>
+                  <Button onClick={() => testConnection()}>Retry</Button>
                   <p className="text-xs text-muted">
                     Check your environment variables and Supabase project status.
                   </p>

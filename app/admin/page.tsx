@@ -1,14 +1,65 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import AppLayout from '@/components/layouts/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ShieldCheck, Users, Briefcase, Calendar, TrendingUp, AlertTriangle, Search, Filter } from 'lucide-react';
+import { ShieldCheck, Users, Briefcase, Calendar, TrendingUp, AlertTriangle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
+import { supabase } from '@/lib/supabase';
+import { formatCurrency } from '@/lib/utils';
 
 export default function AdminDashboard() {
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    revenue: 0,
+    users: 0,
+    businesses: 0,
+    bookings: 0
+  });
+  const [pendingVerifications, setPendingVerifications] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchAdminData = async () => {
+      try {
+        const [usersRes, businessesRes, bookingsRes, paymentsRes, pendingRes] = await Promise.all([
+          supabase.from('users').select('id', { count: 'exact', head: true }),
+          supabase.from('businesses').select('id', { count: 'exact', head: true }),
+          supabase.from('bookings').select('id', { count: 'exact', head: true }),
+          supabase.from('payments').select('amount').eq('status', 'completed'),
+          supabase.from('businesses').select('*').eq('verification_status', 'pending').limit(5)
+        ]);
+
+        const totalRevenue = (paymentsRes.data || []).reduce((acc, curr) => acc + curr.amount, 0);
+
+        setStats({
+          revenue: totalRevenue,
+          users: usersRes.count || 0,
+          businesses: businessesRes.count || 0,
+          bookings: bookingsRes.count || 0
+        });
+
+        setPendingVerifications(pendingRes.data || []);
+      } catch (err) {
+        console.error('Error fetching admin dashboard:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAdminData();
+  }, []);
+
+  if (loading) {
+    return (
+      <AppLayout>
+        <div className="flex justify-center py-40">
+          <Loader2 className="w-12 h-12 animate-spin text-primary" />
+        </div>
+      </AppLayout>
+    );
+  }
+
   return (
     <AppLayout>
       <div className="max-w-7xl mx-auto px-4 md:px-8 py-8 space-y-8">
@@ -21,7 +72,7 @@ export default function AdminDashboard() {
             <Button variant="outline">
               Platform Settings
             </Button>
-            <Button className="bg-primary-deep text-white">
+            <Button className="bg-primary-deep text-white border-none">
               System Logs
             </Button>
           </div>
@@ -33,10 +84,10 @@ export default function AdminDashboard() {
             <CardContent className="p-6 flex items-center justify-between">
               <div className="space-y-1">
                 <p className="text-primary-soft text-xs font-bold uppercase tracking-wider">Total Revenue</p>
-                <p className="text-3xl font-bold">₦12.5M</p>
+                <p className="text-3xl font-bold">{formatCurrency(stats.revenue)}</p>
                 <div className="flex items-center text-primary-soft text-xs mt-1">
                   <TrendingUp className="w-3 h-3 mr-1" />
-                  +18% from last month
+                  Live Platform Data
                 </div>
               </div>
               <TrendingUp className="w-10 h-10 opacity-20" />
@@ -45,9 +96,9 @@ export default function AdminDashboard() {
           <Card>
             <CardContent className="p-6 flex items-center justify-between">
               <div className="space-y-1">
-                <p className="text-muted text-xs font-bold uppercase tracking-wider">Active Users</p>
-                <p className="text-3xl font-bold text-foreground">12,450</p>
-                <p className="text-emerald-600 text-xs mt-1">+240 this week</p>
+                <p className="text-muted text-xs font-bold uppercase tracking-wider">Total Users</p>
+                <p className="text-3xl font-bold text-foreground">{stats.users}</p>
+                <p className="text-emerald-600 text-xs mt-1">Platform wide</p>
               </div>
               <Users className="w-10 h-10 text-primary opacity-20" />
             </CardContent>
@@ -55,9 +106,9 @@ export default function AdminDashboard() {
           <Card>
             <CardContent className="p-6 flex items-center justify-between">
               <div className="space-y-1">
-                <p className="text-muted text-xs font-bold uppercase tracking-wider">Total Businesses</p>
-                <p className="text-3xl font-bold text-foreground">842</p>
-                <p className="text-muted text-xs mt-1">12 pending verification</p>
+                <p className="text-muted text-xs font-bold uppercase tracking-wider">Registered Businesses</p>
+                <p className="text-3xl font-bold text-foreground">{stats.businesses}</p>
+                <p className="text-muted text-xs mt-1">Across all categories</p>
               </div>
               <Briefcase className="w-10 h-10 text-primary opacity-20" />
             </CardContent>
@@ -66,8 +117,8 @@ export default function AdminDashboard() {
             <CardContent className="p-6 flex items-center justify-between">
               <div className="space-y-1">
                 <p className="text-muted text-xs font-bold uppercase tracking-wider">Total Bookings</p>
-                <p className="text-3xl font-bold text-foreground">48,210</p>
-                <p className="text-muted text-xs mt-1">Across all categories</p>
+                <p className="text-3xl font-bold text-foreground">{stats.bookings}</p>
+                <p className="text-muted text-xs mt-1">System total</p>
               </div>
               <Calendar className="w-10 h-10 text-primary opacity-20" />
             </CardContent>
@@ -82,28 +133,35 @@ export default function AdminDashboard() {
                 <ShieldCheck className="w-5 h-5 mr-2 text-primary" />
                 Pending Business Verifications
               </CardTitle>
-              <Badge variant="destructive">Action Required</Badge>
+              {pendingVerifications.length > 0 && <Badge variant="destructive">Action Required</Badge>}
             </CardHeader>
             <CardContent className="p-0">
               <div className="divide-y divide-border">
-                {[1, 2, 3, 4].map((i) => (
-                  <div key={i} className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:bg-gray-50 transition-colors">
-                    <div className="flex items-center space-x-4">
-                      <div className="w-12 h-12 rounded-xl bg-gray-100 overflow-hidden">
-                        <img src={`https://picsum.photos/seed/admin-biz-${i}/100/100`} alt="Biz" />
+                {pendingVerifications.length > 0 ? (
+                  pendingVerifications.map((biz) => (
+                    <div key={biz.id} className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:bg-gray-50 transition-colors">
+                      <div className="flex items-center space-x-4">
+                        <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center text-primary font-bold text-xl uppercase">
+                          {biz.name.charAt(0)}
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-foreground">{biz.name}</h3>
+                          <p className="text-sm text-muted">{biz.city}, {biz.state}</p>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="font-bold text-foreground">Professional Service Group {i}</h3>
-                        <p className="text-sm text-muted">Registered on Oct {10 + i}, 2026</p>
+                      <div className="flex items-center space-x-3">
+                        <Button variant="outline" size="sm">Review</Button>
+                        <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white border-none">Approve</Button>
+                        <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50">Reject</Button>
                       </div>
                     </div>
-                    <div className="flex items-center space-x-3">
-                      <Button variant="outline" size="sm">Review Docs</Button>
-                      <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white border-none">Approve</Button>
-                      <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50">Reject</Button>
-                    </div>
+                  ))
+                ) : (
+                  <div className="p-20 text-center space-y-4">
+                    <ShieldCheck className="w-12 h-12 text-muted mx-auto opacity-20" />
+                    <p className="text-muted">No pending business verifications.</p>
                   </div>
-                ))}
+                )}
               </div>
             </CardContent>
           </Card>
@@ -131,32 +189,32 @@ export default function AdminDashboard() {
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
-                    <div className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
-                    <span className="text-sm font-medium">Payment Gateway</span>
+                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="text-sm font-medium">Payment Engine</span>
                   </div>
-                  <Badge variant="outline" className="text-yellow-600 border-yellow-200 bg-yellow-50">Slow</Badge>
+                  <Badge variant="success">Online</Badge>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
-                    <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                    <span className="text-sm font-medium">Email Service</span>
+                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="text-sm font-medium">Service Network</span>
                   </div>
-                  <Badge variant="destructive">Down</Badge>
+                  <Badge variant="success">Online</Badge>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="border-l-4 border-l-red-500">
+            <Card className="border-l-4 border-l-blue-500">
               <CardContent className="p-6 space-y-4">
-                <div className="flex items-center space-x-2 text-red-600">
+                <div className="flex items-center space-x-2 text-blue-600">
                   <AlertTriangle className="w-5 h-5" />
-                  <h3 className="font-bold">Urgent Attention</h3>
+                  <h3 className="font-bold">System Notice</h3>
                 </div>
                 <p className="text-sm text-muted">
-                  3 businesses have reported issues with payment settlements in the last 24 hours.
+                  The platform is currently operating normally. No critical issues detected in the last 24 hours.
                 </p>
-                <Button className="w-full bg-red-600 hover:bg-red-700 text-white border-none">
-                  Investigate Issues
+                <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white border-none">
+                  View System Logs
                 </Button>
               </CardContent>
             </Card>

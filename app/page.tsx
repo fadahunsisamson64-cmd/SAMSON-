@@ -181,7 +181,7 @@ export default function LandingPage() {
             <div className="space-y-8">
               <h2 className="text-4xl font-bold leading-tight">Why Choose Lumina for Your Bookings?</h2>
               <p className="text-gray-400 text-lg">
-                We've built a platform that prioritizes trust, security, and simplicity for both customers and business owners.
+                We&apos;ve built a platform that prioritizes trust, security, and simplicity for both customers and business owners.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                 {features.map((feature, index) => (
@@ -205,7 +205,7 @@ export default function LandingPage() {
                     ))}
                   </div>
                   <p className="text-2xl font-medium italic">
-                    "Lumina has completely transformed how I manage my appointments. The verification process gives my clients peace of mind, and the UI is just beautiful."
+                    &quot;Lumina has completely transformed how I manage my appointments. The verification process gives my clients peace of mind, and the UI is just beautiful.&quot;
                   </p>
                   <div className="flex items-center space-x-4">
                     <div className="w-12 h-12 rounded-full bg-primary-soft overflow-hidden">

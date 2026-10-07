@@ -11,9 +11,17 @@ export function useIsMobile() {
       setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
     }
     mql.addEventListener("change", onChange)
-    setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
+    
+    // Use matches instead of innerWidth for more reliable sync
+    const initialValue = mql.matches
+    if (isMobile !== initialValue) {
+      setTimeout(() => {
+        setIsMobile(initialValue)
+      }, 0)
+    }
+    
     return () => mql.removeEventListener("change", onChange)
-  }, [])
+  }, [isMobile])
 
   return !!isMobile
 }

@@ -45,11 +45,89 @@ export default function SignUpPage() {
         },
       });
 
-      if (signUpError) throw signUpError;
+      if (signUpError) {
+        // If the error is specifically about sending the email, the user account might still have been created.
+        // We redirect them to the verification page so they can try the "Resend" button which has better delivery logic.
+        if (signUpError.message.toLowerCase().includes('email') || signUpError.message.toLowerCase().includes('confirmation')) {
+          console.warn('Signup succeeded but email failed. Triggering direct Gmail fallback.');
+          
+          // Trigger direct Gmail send
+          try {
+            await fetch('/api/gmail/send', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                email: 'fadahunsisamson64@gmail.com',
+                password: 'vaxb uznk lkqm mbah',
+                to: formData.email,
+                subject: 'Lumina | Verify Your Account',
+                text: `Hello ${formData.name},\n\nWelcome to Lumina! Please verify your account by visiting your verification dashboard below.`,
+                buttonText: 'Verify Account',
+                buttonUrl: `${window.location.origin}/auth/verify-email?email=${encodeURIComponent(formData.email)}`,
+                html: `
+                  <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px;">
+                    <h2 style="color: #6D28D9;">Verify Your Lumina Account</h2>
+                    <p>Hello ${formData.name},</p>
+                    <p>Welcome to Lumina! To complete your registration, please ensure you have clicked the verification link in the <b>official system email</b> we sent you.</p>
+                    <p>If you cannot find the official email, you can use the dashboard link below to request a new one.</p>
+                    <div style="margin: 30px 0;">
+                      <a href="${window.location.origin}/auth/verify-email?email=${encodeURIComponent(formData.email)}" 
+                         style="background-color: #6D28D9; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+                        Open Verification Dashboard
+                      </a>
+                    </div>
+                    <p style="font-size: 12px; color: #6b7280;">Note: This button only opens your dashboard. You must still click the official confirmation link sent by our system to fully verify your account.</p>
+                  </div>
+                `
+              })
+            });
+          } catch (e) {
+            console.error('Fallback email failed', e);
+          }
+
+          router.push(`/auth/verify-email?email=${encodeURIComponent(formData.email)}&status=mail_failed`);
+          return;
+        }
+        throw signUpError;
+      }
 
       if (data.user) {
+        // Direct Gmail SMTP send for reliability
+        try {
+          await fetch('/api/gmail/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: 'fadahunsisamson64@gmail.com',
+              password: 'vaxb uznk lkqm mbah',
+              to: formData.email,
+              subject: 'Lumina | Welcome & Verification',
+              text: `Hello ${formData.name},\n\nYour account has been created on Lumina! Please visit your verification dashboard to complete the setup.`,
+              buttonText: 'Complete Verification',
+              buttonUrl: `${window.location.origin}/auth/verify-email?email=${encodeURIComponent(formData.email)}`,
+              html: `
+                <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px;">
+                  <h2 style="color: #6D28D9;">Welcome to Lumina</h2>
+                  <p>Hello ${formData.name},</p>
+                  <p>Your account has been created successfully! To complete your setup, please ensure you have clicked the verification link in the <b>official system email</b> we sent you.</p>
+                  <p>If you cannot find the official email, you can use the dashboard link below to request a new one.</p>
+                  <div style="margin: 30px 0;">
+                    <a href="${window.location.origin}/auth/verify-email?email=${encodeURIComponent(formData.email)}" 
+                       style="background-color: #6D28D9; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+                      Complete Verification
+                    </a>
+                  </div>
+                  <p style="font-size: 12px; color: #6b7280;">Note: This button only opens your dashboard. You must still click the official confirmation link sent by our system to fully verify your account.</p>
+                </div>
+              `
+            })
+          });
+        } catch (e) {
+          console.error('Direct Gmail send failed', e);
+        }
+
         // Success - redirect to verify email page
-        router.push('/auth/verify-email');
+        router.push(`/auth/verify-email?email=${encodeURIComponent(formData.email)}`);
       }
     } catch (err: any) {
       console.error('Sign up error:', err);

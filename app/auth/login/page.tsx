@@ -1,20 +1,53 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ShieldCheck, Mail, Lock, ArrowRight, Github } from 'lucide-react';
+import { ShieldCheck, Mail, Lock, ArrowRight, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { supabase } from '@/lib/supabase';
 
 export default function LoginPage() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real app, this would call Supabase Auth
-    console.log('Login attempt');
+    setLoading(true);
+    setError(null);
+
+    try {
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (signInError) throw signInError;
+
+      if (data.user) {
+        // Successful login
+        // Check user role from metadata to redirect correctly
+        const role = data.user.user_metadata?.role || 'customer';
+        
+        if (role === 'admin') {
+          router.push('/admin');
+        } else if (role === 'business') {
+          router.push('/business');
+        } else {
+          router.push('/customer');
+        }
+      }
+    } catch (err: any) {
+      console.error('Login error:', err);
+      setError(err.message || 'Invalid email or password. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -34,6 +67,13 @@ export default function LoginPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
+          {error && (
+            <div className="p-3 bg-red-50 border border-red-100 text-red-600 rounded-lg flex items-start space-x-2 text-sm">
+              <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <label className="text-sm font-medium text-foreground" htmlFor="email">
@@ -46,7 +86,10 @@ export default function LoginPage() {
                   type="email"
                   placeholder="name@example.com"
                   className="pl-10"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   required
+                  disabled={loading}
                 />
               </div>
             </div>
@@ -69,13 +112,25 @@ export default function LoginPage() {
                   type="password"
                   placeholder="••••••••"
                   className="pl-10"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   required
+                  disabled={loading}
                 />
               </div>
             </div>
-            <Button type="submit" className="w-full h-11">
-              Sign In
-              <ArrowRight className="ml-2 w-4 h-4" />
+            <Button type="submit" className="w-full h-11" disabled={loading}>
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Signing in...
+                </>
+              ) : (
+                <>
+                  Sign In
+                  <ArrowRight className="ml-2 w-4 h-4" />
+                </>
+              )}
             </Button>
           </form>
 
@@ -89,11 +144,11 @@ export default function LoginPage() {
           </div>
 
           <div className="grid grid-cols-1 gap-4">
-            <Button variant="outline" className="w-full h-11 space-x-2">
+            <Button variant="outline" className="w-full h-11 space-x-2" disabled={loading}>
               <ShieldCheck className="w-4 h-4" />
               <span>Sign in with Passkey</span>
             </Button>
-            <Button variant="outline" className="w-full h-11 space-x-2">
+            <Button variant="outline" className="w-full h-11 space-x-2" disabled={loading}>
               <Mail className="w-4 h-4" />
               <span>Login with OTP</span>
             </Button>
@@ -101,7 +156,7 @@ export default function LoginPage() {
         </CardContent>
         <CardFooter className="flex flex-col space-y-4 border-t border-border pt-6">
           <p className="text-sm text-center text-muted">
-            Don't have an account?{' '}
+            Don&apos;t have an account?{' '}
             <Link href="/auth/sign-up" className="text-primary font-bold hover:underline">
               Sign up
             </Link>

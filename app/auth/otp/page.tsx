@@ -73,7 +73,7 @@ export default function OTPPage() {
         </CardContent>
         <CardFooter className="flex flex-col space-y-4 border-t border-border pt-6">
           <div className="flex items-center justify-center space-x-1 text-sm text-muted">
-            <span>Didn't receive the code?</span>
+            <span>Didn&apos;t receive the code?</span>
             <button className="text-primary font-bold hover:underline flex items-center">
               <RefreshCw className="w-3 h-3 mr-1" />
               Resend
